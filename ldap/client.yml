@@ -1,0 +1,71 @@
+---
+
+- name: Setup ldap authentication client in Ubuntu 20.04
+  gather_facts: false
+  hosts: vms_ubuntu_20
+  remote_user: root
+  tasks:
+    - name: Install all packages
+      apt:
+        name: ['libnss-ldap', 'libpam-ldap', 'ldap-utils', 'nscd'] 
+        state: present
+
+    - name: Replace ldap base dn
+      replace:
+        path: /etc/ldap.conf
+        regexp: 'base dc=example,dc=net'
+        replace: 'base dc=meudominio,dc=com'
+
+    - name: Replace ldap uri
+      replace:
+        path: /etc/ldap.conf
+        regexp: 'uri ldapi:///'
+        replace: 'uri ldap://ldap.meudominio.com.br'
+
+    - name: Replace ldap rootbinddn
+      replace:
+        path: /etc/ldap.conf
+        regexp: 'rootbinddn cn=manager,dc=example,dc=net'
+        replace: 'rootbinddn cn=Manager,dc=meudominio,dc=com'
+
+    - name: Update /etc/pam.d/common-session
+      shell: if grep -Fxq "session required pam_mkhomedir.so skel=/etc/skel umask=077" /etc/pam.d/common-session; then echo oi; else echo "session required pam_mkhomedir.so skel=/etc/skel umask=077" >> /etc/pam.d/common-session; fi
+
+    - name: Update nsswitch.conf
+      replace:
+        path: /etc/nsswitch.conf
+        regexp: 'passwd:         files systemd\n'
+        replace: 'passwd:         files systemd ldap\n'
+
+    - name: Update nsswitch.conf
+      replace:
+        path: /etc/nsswitch.conf
+        regexp: 'group:          files systemd\n'
+        replace: 'group:          files systemd ldap\n'
+
+    - name: Update nsswitch.conf
+      replace:
+        path: /etc/nsswitch.conf
+        regexp: 'shadow:         files\n'
+        replace: 'shadow:         files ldap\n'
+
+    - name: Restart service nscd
+      service:
+        name: nscd
+        state: restarted
+
+    - name: Enable service nscd
+      service:
+        name: nscd
+        enabled: yes
+
+    - name: Replace sshd_config
+      replace:
+        path: /etc/ssh/sshd_config
+        regexp: 'PasswordAuthentication no'
+        replace: 'PasswordAuthentication yes'
+
+    - name: Restart service ssh
+      service:
+        name: ssh
+        state: restarted

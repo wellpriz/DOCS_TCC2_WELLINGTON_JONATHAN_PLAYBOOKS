@@ -1,0 +1,80 @@
+- name: Configurar cliente de autenticação LDAP no Ubuntu 22.04
+  gather_facts: false  # Desativa a coleta de fatos para agilizar a execução
+  hosts: vms_ubuntu_22  # Define os hosts onde o playbook será executado
+  remote_user: root  # Define o usuário remoto como root
+  tasks:
+    - name: Instalar todos os pacotes necessários
+      apt:
+        name: 
+          - libnss-ldapd  # Pacote para integração do NSS com LDAP
+          - libpam-ldapd  # Pacote para integração do PAM com LDAP
+          - ldap-utils    # Ferramentas de linha de comando para LDAP
+          - nscd          # Serviço de cache de nome
+        state: present  
+      become: true  # Executa a tarefa com privilégios elevados (sudo)
+
+    - name: Configurar o DN base do LDAP
+      lineinfile:
+        path: /etc/nslcd.conf  # Arquivo de configuração do cliente LDAP
+        regexp: '^base\s'  # Procura a linha que define o DN base
+        line: 'base dc=meudominio,dc=com'  # Define o DN base, Nome dominio
+        state: present 
+      become: true
+
+    - name: Configurar o URI do LDAP
+      lineinfile:
+        path: /etc/nslcd.conf
+        regexp: '^uri\s' 
+        line: 'uri ldap://ldap.meudominio.com.br'  # Define o URI do servidor LDAP
+        state: present
+      become: true
+
+    - name: Configurar o rootbinddn do LDAP
+      lineinfile:
+        path: /etc/nslcd.conf
+        regexp: '^rootbinddn\s'  # Procura a linha que define o rootbinddn
+        line: 'rootbinddn cn=Manager,dc=meudominio,dc=com'  # Define o rootbinddn
+        state: present
+      become: true
+
+    - name: Garantir que o pam_mkhomedir esteja configurado no common-session
+      lineinfile:
+        path: /etc/pam.d/common-session  # Arquivo de configuração do PAM
+        line: 'session required pam_mkhomedir.so skel=/etc/skel umask=077'  # Configura a criação automática de diretórios home
+        insertafter: EOF  
+      become: true
+
+    - name: Atualizar o nsswitch.conf para usar LDAP
+      lineinfile:
+        path: /etc/nsswitch.conf  # Arquivo de configuração do NSS
+        regexp: '^(passwd|group|shadow):\s+files'  # Procura as linhas que definem a fonte de dados
+        line: '\1:         files ldap'  # Adiciona LDAP como fonte de dados
+        state: present
+      with_items:
+        - passwd
+        - group
+        - shadow
+      loop_control:
+        loop_var: item  # Define a variável de iteração
+      become: true
+
+    - name: Reiniciar e habilitar o serviço nscd
+      service:
+        name: nscd 
+        state: restarted  
+        enabled: yes  
+      become: true
+
+    - name: Atualizar sshd_config para permitir autenticação por senha
+      lineinfile:
+        path: /etc/ssh/sshd_config  # Arquivo de configuração do SSH
+        regexp: '^PasswordAuthentication\s+'  # Procura a linha que define a autenticação por senha
+        line: 'PasswordAuthentication yes'  # Habilita a autenticação por senha
+        state: present
+      become: true
+
+    - name: Reiniciar o serviço SSH
+      service:
+        name: ssh  # Nome do serviço SSH
+        state: restarted  # Reinicia o serviço SSH
+      become: true
