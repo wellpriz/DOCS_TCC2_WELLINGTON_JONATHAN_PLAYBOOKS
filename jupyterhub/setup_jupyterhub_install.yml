@@ -1,0 +1,59 @@
+---
+
+- name: Setup jupyterhub
+  gather_facts: false
+  hosts: vms_ubuntu_20
+  remote_user: root
+  tasks:
+    - name: Install all apt packages
+      apt:
+        name: ['nodejs', 'python3-pip', 'python3-dev', 'npm'] 
+        state: present
+
+    - name: Install pip packages
+      pip:
+        name:
+          - notebook==7.3.0
+          - jupyterhub==4.1.0
+          - jupyterlab==4.3.2
+          - nbconvert==7.2.3
+          - markupsafe==2.0.1
+          - Jinja2==3.1.2
+        executable: pip3
+
+    - name: Install configurable-http-proxy
+      npm:
+        name: configurable-http-proxy@4.2.1
+        global: yes
+        state: present
+
+    - name: Create /etc/jupyterhub/ directory
+      file:
+        path: /etc/jupyterhub/
+        state: directory
+
+    # - name: Generate jupyterhub config
+    #   shell: jupyterhub --generate-config /etc/jupyterhub/jupyterhub_config.py
+
+    - name: Copy jupyterhub_config file
+      copy:
+        src: jupyterhub_config.py
+        dest: /etc/jupyterhub/jupyterhub_config.py
+
+    - name: Replace jupyterhub config
+      replace:
+        path: /etc/jupyterhub/jupyterhub_config.py
+        regexp: "c.JupyterHub.base_url = '/notebook/host'"
+        replace: "c.JupyterHub.base_url = '/notebook/{{ inventory_hostname }}'"
+
+    - name: Copy jupyterhub.service file
+      copy:
+        src: jupyterhub.service
+        dest: /etc/systemd/system/jupyterhub.service
+
+    - name: Enable service jupyterhub
+      systemd:
+        state: started
+        daemon_reload: yes
+        name: jupyterhub
+        enabled: yes

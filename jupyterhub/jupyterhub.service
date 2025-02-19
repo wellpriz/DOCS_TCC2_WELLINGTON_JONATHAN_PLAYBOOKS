@@ -1,0 +1,10 @@
+[Unit]
+Description=Service to run JupyterHub in user space
+
+[Service]
+User=root
+Environment="PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+ExecStart=/usr/bin/python3 -m jupyterhub --ip 0.0.0.0 --port 8888 -f /etc/jupyterhub/jupyterhub_config.py
+
+[Install]
+WantedBy=default.target
