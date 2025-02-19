@@ -1,0 +1,11 @@
+[servernebula]
+servern03 ansible_python_interpreter=/usr/bin/python3 
+[pcs]
+# desktopg03 ansible_python_interpreter=/usr/bin/python3.9
+ 
+[centos8]
+serverg03 ansible_python_interpreter=/usr/bin/python3
+[metal:children]
+ servernebula
+ pcs
+ centos8

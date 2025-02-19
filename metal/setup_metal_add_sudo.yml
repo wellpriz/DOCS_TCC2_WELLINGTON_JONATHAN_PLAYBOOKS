@@ -1,0 +1,26 @@
+---
+- name: Adicionar linha ao arquivo sudoers, reiniciar o serviço sudo e imprimir usuários com permissão de sudo
+  hosts: vms_ubuntu
+  remote_user: root
+  become: true
+  tasks:
+    - name: Adicionar linha ao arquivo sudoers
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        line: 'NomeUSER  ALL=(ALL:ALL) ALL' # nome do user a ser trocado
+        validate: visudo -cf %s
+
+    - name: Reiniciar o serviço sudo
+      service:
+        name: sudo
+        state: restarted
+
+    - name: Obter usuários com permissão de sudo
+      shell: 'grep -Po "^sudo.+:\K.*$" /etc/group'
+      register: sudo_users
+      changed_when: false
+
+    - name: Imprimir usuários com permissão de sudo
+      debug:
+        msg: "{{ inventory_hostname }}: {{ sudo_users.stdout }}"

@@ -1,0 +1,122 @@
+---
+
+- name: General
+  gather_facts: false
+  hosts: metal
+  remote_user: root
+  tasks:
+  - name: Changing root password
+    ansible.builtin.user:
+      name: root
+      password: "{{ 'root_password' | password_hash('sha512', 'ABOBORA') }}"  # Troca ABOBORA PELO NOME DO USER ROOT
+
+  - name: Alterar senha do root sem hash
+    ansible.builtin.shell: echo "root:ABOBORA" | chpasswd # Troca ABOBORA PELO NOME DO USER ROOT
+    become: true
+
+  # - name: Set hostname
+  #   hostname:
+  #     name: "{{ inventory_hostname }}"
+
+  # - name: Add Opennebula repository
+  #   yum_repository:
+  #     name: opennebula
+  #     description: The repository from Opennebula!
+  #     baseurl: https://downloads.opennebula.io/repo/6.8/AlmaLinux/9/x86_64/
+  #     gpgkey: https://downloads.opennebula.org/repo/repo2.key
+  #     gpgcheck: yes
+
+  # - name: Install epel
+  #   yum:
+  #     name:
+  #       - epel-release
+  #     state: present
+
+  # - name: Install General
+  #   yum:
+  #     name:
+  #       - vim
+  #       - curl
+  #       - tmux
+  #       - wget
+  #       - htop
+  #       - epel-release
+  #       - cockpit
+  #     state: present
+
+  # - name: Install Opennebula
+  #   dnf:
+  #     name:
+  #       - opennebula-node-kvm
+  #     state: present
+  #   notify: libvirtd restart
+
+  # - name: Install screenfetch
+  #   get_url:
+  #     url: https://raw.githubusercontent.com/KittyKatt/screenFetch/master/screenfetch-dev
+  #     dest: /usr/bin/screenfetch
+  #     mode: '0775'
+
+  - name: Set authorized key for user ubuntu copying it from current user
+    authorized_key:
+      user: oneadmin
+      state: present
+      key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+
+  - name: Generate ssh keys for oneadmin
+    openssh_keypair:
+      path: /var/lib/one/.ssh/id_rsa
+      owner: oneadmin
+      size: 2048
+
+  - name: Fetch keys from remote nodes
+    fetch:
+      src: /var/lib/one/.ssh/id_rsa.pub
+      dest: "/tmp/oneadmin_keys/{{ inventory_hostname }}.pub"
+      flat: yes
+
+  - name: Add oneadmin keys to hosts
+    authorized_key:
+      user: oneadmin
+      state: present
+      key: "{{ lookup('file', '/tmp/oneadmin_keys/{{ item }}.pub') }}"
+    loop: "{{ ansible_play_batch }}"
+
+  - name: Delete old keys
+    known_hosts:
+      host: "{{ item }}"
+      path: /var/lib/one/.ssh/known_hosts
+      state: absent
+    loop: "{{ ansible_play_batch }}"
+
+  - name: Add oneadmin hosts to known hosts
+    known_hosts:
+      host: "{{ item }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan {{ item }}') }}"
+      path: /var/lib/one/.ssh/known_hosts
+    loop: "{{ ansible_play_batch }}"
+
+  - name: Add oneadmin ownership to files at its home
+    file:
+      path: /var/lib/one
+      state: directory
+      recurse: yes
+      owner: oneadmin
+      group: oneadmin
+
+  - name: Enable cockpit
+    systemd:
+      state: started
+      enabled: True
+      name: cockpit.socket
+
+  - name: Disable SELinux
+    selinux:
+      state: disabled
+
+  handlers:
+      - name: libvirtd restart
+        systemd:
+          state: restarted
+          daemon_reload: yes
+          name: libvirtd

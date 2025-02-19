@@ -1,0 +1,18 @@
+[servernebula]
+#servern03 ansible_python_interpreter=/usr/bin/python3.8 dnf_backend=dnf4
+
+[pcs]
+# desktopg01  ansible_python_interpreter=/usr/bin/python3.8
+# desktopg02 dnf_backend=dnf4 ansible_python_interpreter=/usr/bin/python3
+# desktopg03 dnf_backend=dnf4 ansible_python_interpreter=/usr/bin/python3
+# desktopg04 dnf_backend=dnf4 ansible_python_interpreter=/usr/bin/python3
+# desktopg05 dnf_backend=dnf4 ansible_python_interpreter=/usr/bin/python3
+# desktopg06 dnf_backend=dnf4 ansible_python_interpreter=/usr/bin/python3
+[centos8]
+
+# serverg01 dnf_backend=dnf4 ansible_python_interpreter=/usr/bin/python3
+
+[metal:children]
+pcs
+centos8
+servernebula

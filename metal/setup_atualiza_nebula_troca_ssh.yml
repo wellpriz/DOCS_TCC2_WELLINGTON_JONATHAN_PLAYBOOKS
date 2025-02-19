@@ -1,0 +1,61 @@
+---
+
+- name: General
+  gather_facts: false
+  hosts: metal
+  remote_user: root
+  tasks:
+  - name: Set authorized key for user ubuntu copying it from current user
+    authorized_key:
+      user: oneadmin
+      state: present
+      key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+
+  - name: Generate ssh keys for oneadmin
+    openssh_keypair:
+      path: /var/lib/one/.ssh/id_rsa
+      owner: oneadmin
+      size: 2048
+
+  - name: Fetch keys from remote nodes
+    fetch:
+      src: /var/lib/one/.ssh/id_rsa.pub
+      dest: "/tmp/oneadmin_keys/{{ inventory_hostname }}.pub"
+      flat: yes
+
+  - name: Add oneadmin keys to hosts
+    authorized_key:
+      user: oneadmin
+      state: present
+      key: "{{ lookup('file', '/tmp/oneadmin_keys/{{ item }}.pub') }}"
+    loop: "{{ ansible_play_batch }}"
+
+  - name: Delete old keys
+    known_hosts:
+      host: "{{ item }}"
+      path: /var/lib/one/.ssh/known_hosts
+      state: absent
+    loop: "{{ ansible_play_batch }}"
+
+  - name: Add oneadmin hosts to known hosts
+    known_hosts:
+      host: "{{ item }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan {{ item }}') }}"
+      path: /var/lib/one/.ssh/known_hosts
+    loop: "{{ ansible_play_batch }}"
+
+  - name: Add oneadmin ownership to files at its home
+    file:
+      path: /var/lib/one
+      state: directory
+      recurse: yes
+      owner: oneadmin
+      group: oneadmin
+
+  handlers:
+      - name: libvirtd restart
+        systemd:
+          state: restarted
+          daemon_reload: yes
+          name: libvirtd
+
