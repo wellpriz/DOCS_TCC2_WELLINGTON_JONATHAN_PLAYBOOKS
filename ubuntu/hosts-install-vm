@@ -1,0 +1,34 @@
+[vms_ubuntu_20] 
+#  ada ansible_python_interpreter=/usr/bin/python3
+#  borh  ansible_python_interpreter=/usr/bin/python3
+#  curie  ansible_python_interpreter=/usr/bin/python3
+#  darwin  ansible_python_interpreter=/usr/bin/python3 
+#  euler  ansible_python_interpreter=/usr/bin/python3  
+#  floyd  ansible_python_interpreter=/usr/bin/python3
+
+
+
+#davinci ansible_host=172.16.1.51  ansible_python_interpreter=/usr/bin/python3.10  
+# webserver-ailab ansible_host=172.16.1.57  ansible_python_interpreter=/usr/bin/python3.10
+# desktopg03 ansible_host=172.16.1.87  ansible_python_interpreter=/usr/bin/python3.8
+# osirisgpu473 ansible_host=172.16.1.42  ansible_python_interpreter=/usr/bin/python3.8
+# serverg01 ansible_host=172.16.1.10  ansible_python_interpreter=/usr/bin/python3.8  
+# serverN01 ansible_host=172.16.1.6  ansible_python_interpreter=/usr/bin/python3.8  
+# serverN02  ansible_python_interpreter=/usr/bin/python3.9
+# servern03 ansible_host=172.16.1.13  ansible_python_interpreter=/usr/bin/python3.8  
+# serverG02  ansible_python_interpreter=/usr/bin/python3.9
+# serverG03 ansible_host=172.16.1.17  ansible_python_interpreter=/usr/bin/python3.8 
+# serverG04  ansible_python_interpreter=/usr/bin/python3.8 
+
+# node1 ansible_python_interpreter=/usr/bin/python3.8 
+# novotesla ansible_python_interpreter=/usr/bin/python3.8 
+# nikola ansible_python_interpreter=/usr/bin/python3.8 
+
+
+[vms_ubuntu:children]
+vms_ubuntu_20
+[vms_ubuntu_gpu:children]
+vms_ubuntu_20
+
+# [vms_ubuntu_22] 
+# osirisgpu526   ansible_python_interpreter=/usr/bin/python3.8

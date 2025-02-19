@@ -1,0 +1,92 @@
+---
+
+- name: Setup Ubuntu VMs
+  gather_facts: false
+  hosts: vms_ubuntu_gpu
+  remote_user: root
+  tasks:
+
+  - name: Atualizar a lista de pacotes
+    apt:
+      update_cache: yes
+
+  - name: Install General
+    apt:
+      name:
+        - nfs-common
+        - htop
+        - vim
+        - tmux
+        - python3-pip
+        - python3-venv
+        - build-essential
+        - software-properties-common
+        - nvidia-cuda-toolkit
+        - ubuntu-drivers-common
+
+      state: present
+      update_cache: yes
+
+  - name: Atualizar a lista de pacotes
+    apt:
+      update_cache: yes
+
+  - name: Baixar o arquivo de pinos do repositório CUDA 2204
+    get_url:
+      url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin"
+      dest: "/etc/apt/preferences.d/cuda-repository-pin-600"
+      mode: 0644
+    changed_when: false
+
+  - name: Baixar o arquivo Chave GPG do repositório CUDA -altera de acordo com versao do ubuntu
+    shell: curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub -o /tmp/3bf863cc.pub
+    become: true
+
+  - name: Adicionar a chave de autenticação do repositório CUDA
+    shell: mv /tmp/3bf863cc.pub /etc/apt/trusted.gpg.d/nvidia.asc
+    become: true
+
+  - name: Adicionar o repositorio CUDA
+    command: add-apt-repository -y "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+    changed_when: true
+    
+  - name: Atualizar a lista de pacotes
+    apt:
+      update_cache: yes
+
+  - name: Atualizar todos os pacotes instalados
+    apt:
+      upgrade: dist
+
+  - name: Instalar o pacote cuda
+    apt:
+      name: cuda-12-6
+      state: latest
+
+
+  - name: Criar o diretório /etc/profile.d se não existir
+    file:
+      path: /etc/profile.d
+      state: directory
+
+  - name: cria arquivo /etc/profile.d/cuda.sh se não existir
+    command: touch /etc/profile.d/cuda.sh
+    changed_when: false
+    
+
+  - name: Configurar o arquivo cuda.sh
+    lineinfile:
+      dest: /etc/profile.d/cuda.sh
+      line: |
+        export CUDA_HOME="/usr/local/cuda"
+        export PATH="$PATH:$CUDA_HOME/bin"  
+  
+  - name: Adicionar diretorio CUDA ao secure_path
+    lineinfile:
+      path: /etc/sudoers
+      regexp: '^Defaults\s+secure_path='
+      line: 'Defaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/local/cuda/bin"'
+      validate: 'visudo -cf %s'
+ 
+ 
+

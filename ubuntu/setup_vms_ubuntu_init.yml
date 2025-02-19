@@ -1,0 +1,117 @@
+---
+- name: Setup Ubuntu VMs with latest Docker and Docker Compose
+  gather_facts: false
+  hosts: vms_ubuntu
+  remote_user: root
+  tasks:
+  
+  - name: Set hostname
+    hostname:
+      name: "{{ inventory_hostname }}"
+
+  - name: Alterar senha do root sem hash
+    ansible.builtin.shell: echo "root:toor" | chpasswd
+    become: true
+
+  - name: Update and upgrade pacotes apt 
+    apt:
+      update_cache: yes
+      upgrade: dist
+
+  - name: Install pacotes essenciais
+    apt:
+      name:
+        - nfs-common
+        - htop
+        - vim
+        - tmux
+        - gcc
+        - python3-full
+        - python3
+        - python3-pip
+        - python3-venv
+        - net-tools 
+        - network-manager 
+        - iproute2
+      state: present
+
+  - name: Install prerequisites for Docker
+    apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+      state: present
+
+  # - name: Add Docker GPG key
+  #   ansible.builtin.shell: |
+  #     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+  # - name: Add Docker repository
+  #   ansible.builtin.shell: |
+  #     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  # - name: Update apt cache after adding Docker repo
+  #   apt:
+  #     update_cache: yes
+
+  # - name: Install latest Docker and Docker Compose
+  #   apt:
+  #     name:
+  #       - docker-ce
+  #       - docker-ce-cli
+  #       - containerd.io
+  #     state: present
+
+  # - name: Install Docker Compose plugin
+  #   ansible.builtin.shell: |
+  #     DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+  #     curl -SL https://github.com/docker/compose/releases/download/$DOCKER_COMPOSE_VERSION/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+  #     chmod +x /usr/local/bin/docker-compose
+  #   args:
+  #     creates: /usr/local/bin/docker-compose
+
+  # - name: Start and enable Docker service
+  #   systemd:
+  #     name: docker
+  #     enabled: yes
+  #     state: started
+
+  - name: Backup current resolv.conf
+    copy:
+      src: /etc/resolv.conf
+      dest: /etc/resolv.conf.bak
+      remote_src: yes
+
+  - name: Configure new DNS # endereço do servidor DNS 
+    copy:
+      content: |
+        nameserver 1.1.1.1  
+        nameserver 8.8.8.8
+        search lades.unb.br
+      dest: /etc/resolv.conf
+      owner: root
+      group: root
+      mode: '0644'
+
+  - name: Mount remote homes #troca MEU-NAS-HOME pelo endereço do STORAGE NAS
+    mount:
+      path: /mnt/home
+      src: Meu-NAS-HOME:/var/nfs_shares/home
+      fstype: nfs
+      state: mounted
+
+  - name: Mount NAS3 #troca MEU-NAS-HOME pelo endereço do STORAGE NAS
+    mount:
+      path: /mnt/nas3
+      src: MEU-NAS-HOME:/var/nfs_shares
+      fstype: nfs
+      state: mounted
+
+  - name: Mount NAS3 #troca MEU-NAS-HOME pelo endereço do STORAGE NAS
+    mount:
+      path: /mnt/nas
+      src: MEU-NAS-HOME:/
+      fstype: nfs
+      state: mounted

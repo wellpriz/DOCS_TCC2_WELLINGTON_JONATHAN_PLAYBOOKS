@@ -1,0 +1,61 @@
+---
+- name: Instalar Docker e Docker Compose mais recentes no Ubuntu
+  gather_facts: false
+  hosts: vms_ubuntu
+  remote_user: root
+  tasks:
+  - name: remover chaves  GPG do Docker antigas
+    ansible.builtin.shell: |
+      rm /etc/apt/sources.list.d/docker.list | rm /usr/share/keyrings/docker-archive-keyring.gpg | apt update
+
+  - name: Atualizar e atualizar pacotes apt
+    apt:
+      update_cache: yes
+      upgrade: dist
+
+  - name: Instalar pré-requisitos para o Docker
+    apt:
+      name:
+        - apt-transport-https
+        - python3-apt
+        - ca-certificates
+        - curl
+        - software-properties-common
+      state: present
+
+
+
+  - name: Adicionar chave GPG do Docker
+    ansible.builtin.shell: |
+       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+
+  - name: Adicionar repositório do Docker
+    ansible.builtin.shell: |
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  - name: Atualizar cache do apt após adicionar repositório do Docker
+    apt:
+      update_cache: yes
+
+  - name: Instalar a versão mais recente do Docker
+    apt:
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+      state: present
+
+  - name: Instalar o plugin Docker Compose
+    ansible.builtin.shell: |
+      DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+      curl -SL https://github.com/docker/compose/releases/download/$DOCKER_COMPOSE_VERSION/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+      chmod +x /usr/local/bin/docker-compose
+    args:
+      creates: /usr/local/bin/docker-compose
+
+  - name: Iniciar e habilitar o serviço Docker
+    systemd:
+      name: docker
+      enabled: yes
+      state: started

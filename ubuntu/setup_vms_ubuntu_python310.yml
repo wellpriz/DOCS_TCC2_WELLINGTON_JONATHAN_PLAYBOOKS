@@ -1,0 +1,81 @@
+---
+- name: Configurar Python 3.10 no Ubuntu
+  hosts: vms_ubuntu
+  remote_user: root
+  become: true
+  tasks:
+    - name: Instalar Python 3 e python3-apt
+      apt:
+        name:
+          - python3
+          - python3-apt
+        state: present
+    
+    - name: Atualizar os repositórios
+      apt:
+        update_cache: yes
+
+    - name: Instalar software-properties-common
+      apt:
+        name: software-properties-common
+        state: present
+
+    - name: Adicionar o repositório PPA deadsnakes
+      ansible.builtin.shell: |
+       add-apt-repository ppa:deadsnakes/ppa -y
+
+    # - name: Adicionar o repositório PPA deadsnakes
+    #   apt_repository:
+    #     repo: ppa:deadsnakes/ppa
+
+    - name: Atualizar os repositórios novamente após adicionar o PPA
+      apt:
+        update_cache: yes
+
+    - name: Instalar Python 3.10 e dependências
+      apt:
+        name:
+          - python3.10
+          - python3.10-venv
+          - python3.10-dev
+        state: present
+
+    - name: Verificar se o Python 3.10 foi instalado corretamente
+      command: ls -la /usr/bin/python3
+      register: python_bin_check
+
+    - name: Instalar o pip para Python 3.10
+      ansible.builtin.shell: |
+       wget https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+   
+
+    # - name: Executar o script para instalar pip
+    #   command: python3.10 /tmp/get-pip.py
+    #   when: python_bin_check.stdout | search('python3.10')
+
+    - name: Verificar a versão do pip
+      command: python3.10 -m pip --version
+      register: pip_version
+
+    - name: Verificar a versão do Python 3
+      command: python3 --version
+      register: python_version
+
+    - name: Remover o link simbólico de /usr/bin/python3
+      file:
+        path: /usr/bin/python3
+        state: absent
+
+    - name: Criar um novo link simbólico para python3.10
+      file:
+        src: /usr/bin/python3.10
+        dest: /usr/bin/python3
+        state: link
+
+    - name: Verificar se o link simbólico foi criado corretamente
+      command: python3 --version
+      register: final_python_version
+
+    - name: Exibir a versão final do Python
+      debug:
+        msg: "Versão final do Python: {{ final_python_version.stdout }}"
